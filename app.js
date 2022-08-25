@@ -1,54 +1,69 @@
-var audio = document.querySelector("audio");
-var h1 = document.querySelector("h1");
+
+var audio = document.querySelector('audio');
+var h1 = document.querySelector('h1');
 var default_h1 = h1.innerHTML;
 
 function captureMicrophone(callback) {
-  navigator.mediaDevices
-    .getUserMedia({ audio: true })
-    .then(callback)
-    .catch(function (error) {
-      alert("Unable to access your microphone.");
+  navigator.mediaDevices.getUserMedia({audio: true}).then(callback).catch(function(error) {
+      alert('Unable to access your microphone.');
       console.error(error);
-    });
+  });
 }
 
 function stopRecordingCallback() {
   audio.srcObject = null;
   var blob = recorder.getBlob();
-  console.log(blob);
+  console.log(blob)
 
   var reader = new FileReader();
-  reader.readAsDataURL(blob);
+  reader.readAsDataURL(blob)
 
   reader.onloadend = function () {
-    var base64String = reader.result;
-    console.log("Base64 String - ", base64String);
+      var base64String = reader.result;
+      //console.log('Base64 String - ', base64String);
 
-    var obj = {
-      method: "POST",
-      mode: "cors",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        filedata: base64String,
-      }),
-    };
+      var obj = {
+          method: "POST",
+          mode: "cors",
+          headers: {
+              "Content-Type": "application/json",
+          }, 
+          body: JSON.stringify({
+              filedata: base64String
+          })
+      }
 
-    fetch("http://localhost:8000/predict-base64/", obj)
+      fetch('http://localhost:8000/predict-base64/', obj)
       .then((res) => {
-        return res.json();
+          return res.json();
       })
-      .then((json) => {
+      .then(json => {
         var myTextarea = document.getElementById("myTextarea");
-        myTextarea.append(json.transcribed_text);
+        if(myTextarea.value && myTextarea.value.length > 0)
+          myTextarea.append(" ");
 
-        console.log(json);
+        myTextarea.append(json.transcribed_text);
+          console.log(json)
       })
-      .catch((err) => {
-        console.error(err);
-      });
-  };
+      .catch(err => {
+          console.error(err);
+      })
+
+
+      /*
+      fetch('http://localhost:8000/predict-base64/STT-v2', obj)
+      .then((res) => {
+          return res.json();
+      })
+      .then(json => {
+          console.log(json)
+      })
+      .catch(err => {
+          console.error(err);
+      })
+
+      */
+  }
   audio.src = URL.createObjectURL(blob);
 
   recorder.microphone.stop();
@@ -57,76 +72,78 @@ function stopRecordingCallback() {
 
 var recorder; // globally accessible
 
-document.getElementById("btn-start-recording").onclick = function () {
+document.getElementById('btn-start-recording').onclick = function() {
   this.disabled = true;
+  document.getElementById('btn-start-recording').classList.add('disable')
   var greenButton = document.getElementsByClassName("mic_stop")[0];
   greenButton.classList.add("hide");
   var redButton = document.getElementsByClassName("mic_start")[0];
   redButton.classList.remove("hide");
+  captureMicrophone(function(microphone) {
+      audio.srcObject = microphone;
 
-  captureMicrophone(function (microphone) {
-    audio.srcObject = microphone;
+      recorder = RecordRTC(microphone, {
+          type: 'audio',
+          recorderType: StereoAudioRecorder,
+          desiredSampRate: 16000
+      });
 
-    recorder = RecordRTC(microphone, {
-      type: "audio",
-      recorderType: StereoAudioRecorder,
-      desiredSampRate: 16000,
-    });
+      recorder.startRecording();
 
-    recorder.startRecording();
+      var max_seconds = 1;
+      var stopped_speaking_timeout;
+      var speechEvents = hark(microphone, {});
 
-    var max_seconds = 1;
-    var stopped_speaking_timeout;
-    var speechEvents = hark(microphone, {});
+      speechEvents.on('speaking', function() {
+          //console.log(recorder.getBlob());
+          if(recorder.getBlob()) return;
 
-    speechEvents.on("speaking", function () {
-      // console.log(recorder.getBlob());
-      if (recorder.getBlob()) return;
+          clearTimeout(stopped_speaking_timeout);
 
-      clearTimeout(stopped_speaking_timeout);
+          if(recorder.getState() === 'paused') {
+              // recorder.resumeRecording();
+          }
+          
+          // h1.innerHTML = default_h1;
+      });
 
-      if (recorder.getState() === "paused") {
-        // recorder.resumeRecording();
-      }
+      speechEvents.on('stopped_speaking', function() {
+          //console.log(recorder.getBlob());
+          if(recorder.getBlob()) return;
 
-      h1.innerHTML = default_h1;
-    });
+          // recorder.pauseRecording();
+          stopped_speaking_timeout = setTimeout(function() {
+              document.getElementById('btn-stop-recording').click();
+              // h1.innerHTML = 'Recording is now stopped.';
+          }, max_seconds * 1000);
 
-    speechEvents.on("stopped_speaking", function () {
-      // console.log(recorder.getBlob());
-      if (recorder.getBlob()) return;
+          
+          // just for logging purpose (you ca remove below code)
+          var seconds = max_seconds;
+          (function looper() {
+              // h1.innerHTML = 'Recording is going to be stopped in ' + seconds + ' seconds.';
+              seconds--;
 
-      // recorder.pauseRecording();
-      stopped_speaking_timeout = setTimeout(function () {
-        document.getElementById("btn-stop-recording").click();
-        h1.innerHTML = "Recording is now stopped.";
-      }, max_seconds * 1000);
+              if(seconds <= 0) {
+                  // h1.innerHTML = default_h1;
+                  return;
+              }
 
-      // just for logging purpose (you ca remove below code)
-      var seconds = max_seconds;
-      (function looper() {
-        h1.innerHTML =
-          "Recording is going to be stopped in " + seconds + " seconds.";
-        seconds--;
+              setTimeout(looper, 1000);
+          })();
+      });
 
-        if (seconds <= 0) {
-          h1.innerHTML = default_h1;
-          return;
-        }
+      // release camera on stopRecording
+      recorder.microphone = microphone;
 
-        setTimeout(looper, 1000);
-      })();
-    });
-
-    // release camera on stopRecording
-    recorder.microphone = microphone;
-
-    document.getElementById("btn-stop-recording").disabled = false;
+      document.getElementById('btn-stop-recording').disabled = false;
+      document.getElementById('btn-start-recording').classList.remove("disable")
   });
 };
 
-document.getElementById("btn-stop-recording").onclick = function () {
+document.getElementById('btn-stop-recording').onclick = function() {
   this.disabled = true;
+  document.getElementById('btn-stop-recording').classList.add('disable')
   var greenButton = document.getElementsByClassName("mic_stop")[0];
   greenButton.classList.remove("hide");
   var redButton = document.getElementsByClassName("mic_start")[0];
