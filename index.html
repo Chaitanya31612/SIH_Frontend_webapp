@@ -1,0 +1,54 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css" />
+
+    <title>Auto Stop RecordRTC on Silence</title>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="heading">
+        <img class="heading__img" width="100" src="assets/mice_40.png" alt="" />
+        <h1 class="heading__h1">Sanskrit Voice to Text Application</h1>
+      </div>
+
+      <br />
+      <main>
+        <textarea
+          id="myTextarea"
+          name="text box"
+          id=""
+          cols="70"
+          rows="10"
+          placeholder="Speak Now..."
+        ></textarea>
+        <img
+          class="mic mic_stop"
+          src="assets/mic-stopped.png"
+          width="70"
+          id="btn-start-recording"
+        />
+        <img
+          class="mic mic_start hide"
+          src="assets/mic-started.png"
+          width="70"
+          id="btn-start-recording"
+        />
+
+        <button id="btn-stop-recording" disabled style="display: none">
+          Stop Recording
+        </button>
+        <audio controls muted playsinline hidden></audio>
+      </main>
+
+      <script src="https://www.WebRTC-Experiment.com/RecordRTC.js"></script>
+      <script src="https://www.webrtc-experiment.com/hark.js"></script>
+      <script src="https://www.webrtc-experiment.com/common.js"></script>
+      <script src="app.js"></script>
+
+      <footer style="margin-top: 20px">
+        <small id="send-message"></small>
+      </footer>
+    </div>
+  </body>
+</html>
